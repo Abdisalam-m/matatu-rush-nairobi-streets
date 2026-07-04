@@ -1,0 +1,864 @@
+<title>Matatu Rush: Nairobi Streets</title>
+<style>
+  @media (prefers-reduced-motion: reduce) {
+    * { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
+  }
+
+  :root{
+    --bg-deep:#1b120f;
+    --bg-deep-2:#120c0a;
+    --sunset-1:#ff7a3c;
+    --sunset-2:#7a3fa0;
+    --matatu-yellow:#ffb703;
+    --matatu-yellow-dim:#8a6103;
+    --flag-red:#e63946;
+    --flag-green:#2a9d4a;
+    --road:#2b2b2e;
+    --panel:#241a15;
+    --panel-2:#2f221b;
+    --ink:#f3e9d8;
+    --ink-dim:#c9b9a3;
+    --marquee-glass:#0d0906;
+  }
+
+  *{ box-sizing:border-box; }
+
+  html,body{
+    margin:0; padding:0; min-height:100%;
+    background: radial-gradient(120% 140% at 50% -10%, #3a2418 0%, var(--bg-deep) 45%, var(--bg-deep-2) 100%);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    display:flex;
+    justify-content:center;
+    overflow-x:hidden;
+  }
+
+  .rig{
+    width:100%;
+    max-width:460px;
+    margin:0 auto;
+    padding:18px 14px 28px;
+    display:flex;
+    flex-direction:column;
+    align-items:stretch;
+    gap:10px;
+  }
+
+  /* ---------- Marquee (matatu destination board) ---------- */
+  .marquee{
+    background: var(--marquee-glass);
+    border:3px solid #000;
+    border-radius:6px;
+    padding:10px 12px;
+    box-shadow: inset 0 0 18px #000, 0 4px 14px rgba(0,0,0,.5);
+    overflow:hidden;
+    position:relative;
+  }
+  .marquee::before{
+    content:"";
+    position:absolute; inset:0;
+    background: repeating-linear-gradient(to bottom, rgba(0,0,0,.35) 0px, rgba(0,0,0,.35) 1px, transparent 1px, transparent 3px);
+    pointer-events:none;
+  }
+  .marquee-text{
+    font-family: "Courier New", Consolas, monospace;
+    font-weight:700;
+    letter-spacing:2px;
+    text-align:center;
+    color: var(--matatu-yellow);
+    text-shadow: 0 0 4px var(--matatu-yellow), 0 0 10px rgba(255,183,3,.6);
+    white-space:nowrap;
+    font-size: clamp(14px, 4.6vw, 21px);
+    animation: flicker 3.2s infinite;
+  }
+  .marquee-sub{
+    font-family: "Courier New", Consolas, monospace;
+    text-align:center;
+    color: #ff8a4a;
+    text-shadow: 0 0 6px rgba(255,122,60,.7);
+    font-size: 11px;
+    letter-spacing:3px;
+    margin-top:2px;
+  }
+  @keyframes flicker{
+    0%,96%,100%{ opacity:1; }
+    97%{ opacity:.82; }
+    98%{ opacity:1; }
+    99%{ opacity:.9; }
+  }
+
+  /* ---------- Stripe rail (matatu graffiti stripe motif) ---------- */
+  .stripe-rail{
+    height:8px;
+    border-radius:4px;
+    background: repeating-linear-gradient(100deg,
+      var(--flag-red) 0 22px,
+      var(--matatu-yellow) 22px 44px,
+      var(--flag-green) 44px 66px,
+      #1b1b1b 66px 88px);
+    opacity:.9;
+  }
+
+  /* ---------- Stage / canvas frame ---------- */
+  .stage{
+    position:relative;
+    border-radius:10px;
+    overflow:hidden;
+    border: 3px solid #000;
+    box-shadow: 0 10px 30px rgba(0,0,0,.55), inset 0 0 0 2px #3a2a1c;
+    background:#000;
+  }
+  canvas{ display:block; width:100%; height:auto; background:#111; touch-action:none; }
+
+  .overlay{
+    position:absolute; inset:0;
+    background: linear-gradient(180deg, rgba(18,12,10,.92), rgba(18,12,10,.97));
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:14px; padding:24px 20px; text-align:center;
+  }
+  .hidden{ display:none !important; }
+
+  h1.title{
+    font-family: "Courier New", Consolas, monospace;
+    font-size: clamp(22px, 7vw, 30px);
+    color: var(--matatu-yellow);
+    letter-spacing:1px;
+    margin:0 0 2px;
+    text-shadow: 0 0 12px rgba(255,183,3,.5);
+    text-wrap: balance;
+  }
+  .subtitle{
+    color: var(--ink-dim);
+    font-size:13px;
+    margin:0 0 6px;
+    letter-spacing:.5px;
+  }
+
+  .stat-row{
+    display:flex; gap:10px; justify-content:center; flex-wrap:wrap;
+  }
+  .stat-chip{
+    background: var(--panel);
+    border:1px solid #4a362640;
+    border-radius:8px;
+    padding:8px 14px;
+    min-width:92px;
+  }
+  .stat-chip .k{ font-size:10px; letter-spacing:1.5px; color:var(--ink-dim); text-transform:uppercase; }
+  .stat-chip .v{ font-family: Consolas, monospace; font-variant-numeric: tabular-nums; font-size:19px; color:var(--matatu-yellow); font-weight:700; }
+
+  button{
+    font-family:inherit; cursor:pointer; border:none;
+  }
+  .btn{
+    padding:13px 22px;
+    border-radius:8px;
+    font-size:15px;
+    font-weight:700;
+    letter-spacing:.4px;
+    color:#1b1206;
+    background: linear-gradient(180deg, #ffd15c, var(--matatu-yellow));
+    box-shadow: 0 3px 0 var(--matatu-yellow-dim), 0 6px 14px rgba(0,0,0,.4);
+    min-width:180px;
+  }
+  .btn:active{ transform:translateY(2px); box-shadow: 0 1px 0 var(--matatu-yellow-dim); }
+  .btn.secondary{
+    background: linear-gradient(180deg, #3a2c22, #241a15);
+    color: var(--ink);
+    box-shadow: 0 3px 0 #0d0906, 0 6px 14px rgba(0,0,0,.4);
+  }
+  .btn.small{ min-width:0; padding:9px 14px; font-size:13px; }
+  .btn:disabled{ opacity:.4; cursor:not-allowed; }
+  .btn-row{ display:flex; gap:10px; flex-wrap:wrap; justify-content:center; }
+
+  .instructions{
+    color:var(--ink-dim); font-size:12.5px; line-height:1.7; max-width:320px;
+  }
+  .instructions b{ color:var(--ink); }
+
+  /* ---------- Shop ---------- */
+  .shop-list{ width:100%; display:flex; flex-direction:column; gap:8px; margin:4px 0; }
+  .upgrade-card{
+    background:var(--panel);
+    border:1px solid #4a362640;
+    border-radius:9px;
+    padding:10px 12px;
+    display:flex; align-items:center; gap:10px; text-align:left;
+  }
+  .upgrade-icon{ font-size:22px; width:34px; text-align:center; }
+  .upgrade-body{ flex:1; min-width:0; }
+  .upgrade-name{ font-weight:700; font-size:13.5px; color:var(--ink); }
+  .upgrade-desc{ font-size:11px; color:var(--ink-dim); margin-top:1px; }
+  .upgrade-levels{ display:flex; gap:3px; margin-top:5px; }
+  .lvl-pip{ width:14px; height:5px; border-radius:2px; background:#4a3626; }
+  .lvl-pip.on{ background: var(--matatu-yellow); }
+  .upgrade-buy{ text-align:right; }
+  .upgrade-cost{ font-family:Consolas,monospace; font-size:12px; color:var(--matatu-yellow); margin-bottom:5px; font-variant-numeric: tabular-nums;}
+
+  /* ---------- HUD ---------- */
+  .hud{
+    position:absolute; top:0; left:0; right:0;
+    display:flex; justify-content:space-between; align-items:flex-start;
+    padding:8px 10px; pointer-events:none;
+    font-family: Consolas, monospace;
+  }
+  .hud-block{
+    background:rgba(13,9,6,.72);
+    border:1px solid rgba(255,183,3,.25);
+    border-radius:6px;
+    padding:5px 9px;
+    font-size:12px;
+    color:var(--ink);
+  }
+  .hud-block .k{ color:var(--ink-dim); font-size:9px; letter-spacing:1px; }
+  .hud-block .v{ color:var(--matatu-yellow); font-weight:700; font-variant-numeric: tabular-nums; font-size:14px; }
+  .healthbar-wrap{ width:110px; }
+  .healthbar{ height:8px; border-radius:4px; background:#3a2a1c; overflow:hidden; margin-top:3px; border:1px solid #000; }
+  .healthbar-fill{ height:100%; background: linear-gradient(90deg, var(--flag-red), var(--matatu-yellow), var(--flag-green)); transition: width .2s; }
+  .horn-ready{ box-shadow:0 0 0 2px var(--flag-green) inset; }
+
+  .toast-layer{ position:absolute; inset:0; pointer-events:none; overflow:hidden; }
+  .toast{
+    position:absolute; left:50%; transform:translateX(-50%);
+    font-family: Consolas, monospace; font-weight:700; font-size:13px;
+    padding:2px 0; white-space:nowrap;
+    animation: floatUp 900ms ease-out forwards;
+  }
+  @keyframes floatUp{
+    0%{ opacity:1; transform:translate(-50%,0); }
+    100%{ opacity:0; transform:translate(-50%,-46px); }
+  }
+
+  /* ---------- Touch controls ---------- */
+  .controls{
+    display:flex; justify-content:space-between; align-items:center; gap:10px;
+  }
+  .ctrl-btn{
+    flex:1;
+    padding:16px 0;
+    border-radius:9px;
+    background: linear-gradient(180deg, var(--panel-2), var(--panel));
+    border:1px solid #4a362640;
+    color: var(--matatu-yellow);
+    font-size:20px;
+    box-shadow: 0 3px 0 #0d0906;
+    user-select:none;
+  }
+  .ctrl-btn:active{ transform:translateY(2px); box-shadow:none; }
+  .ctrl-btn.horn{ flex:0 0 76px; font-size:16px; font-weight:700; letter-spacing:.5px; color:var(--flag-green); }
+  .ctrl-btn.horn.cooldown{ color:#6a5a4a; }
+
+  .footer-hint{ text-align:center; color:var(--ink-dim); font-size:10.5px; letter-spacing:.5px; }
+</style>
+
+<div class="rig">
+  <div class="marquee">
+    <div class="marquee-text" id="marqueeText">CBD ⟶ NGONG RD ⟶ ROUNDABOUT</div>
+    <div class="marquee-sub">MATATU RUSH · NAIROBI STREETS</div>
+  </div>
+  <div class="stripe-rail"></div>
+
+  <div class="stage" id="stage">
+    <canvas id="game" width="420" height="700"></canvas>
+
+    <div class="hud hidden" id="hud">
+      <div class="hud-block">
+        <div class="k">FARE</div>
+        <div class="v" id="hudScore">0</div>
+      </div>
+      <div class="hud-block healthbar-wrap">
+        <div class="k">MATATU</div>
+        <div class="healthbar"><div class="healthbar-fill" id="healthFill" style="width:100%"></div></div>
+      </div>
+      <div class="hud-block">
+        <div class="k">KSH</div>
+        <div class="v" id="hudCoins">0</div>
+      </div>
+    </div>
+    <div class="toast-layer" id="toastLayer"></div>
+
+    <!-- START SCREEN -->
+    <div class="overlay" id="startScreen">
+      <h1 class="title">MATATU RUSH</h1>
+      <p class="subtitle">weave the streets · dodge traffic · dodge the cops · fill your seats</p>
+      <div class="stat-row">
+        <div class="stat-chip"><div class="k">Best Fare</div><div class="v" id="bestScoreDisplay">0</div></div>
+        <div class="stat-chip"><div class="k">Bank</div><div class="v" id="bankDisplayStart">0</div></div>
+      </div>
+      <div class="btn-row">
+        <button class="btn" id="playBtn">▶ START ROUTE</button>
+        <button class="btn secondary" id="shopBtnStart">🔧 GARAGE</button>
+      </div>
+      <p class="instructions">
+        <b>◀ ▶ / A D</b> change lane &nbsp;·&nbsp; <b>SPACE</b> sacco horn<br>
+        Pick up <b>passengers</b> for fare, avoid <b>traffic</b>, and stay clear of <b>police</b> roadblocks.
+      </p>
+    </div>
+
+    <!-- SHOP SCREEN -->
+    <div class="overlay hidden" id="shopScreen">
+      <h1 class="title" style="font-size:20px;">THE GARAGE</h1>
+      <div class="stat-chip"><div class="k">Bank</div><div class="v" id="bankDisplayShop">0</div></div>
+      <div class="shop-list" id="shopList"></div>
+      <button class="btn secondary" id="shopBackBtn">← BACK</button>
+    </div>
+
+    <!-- GAME OVER SCREEN -->
+    <div class="overlay hidden" id="gameOverScreen">
+      <h1 class="title" id="gameOverTitle">BUSTED!</h1>
+      <p class="subtitle" id="gameOverReason">The traffic police pulled you over.</p>
+      <div class="stat-row">
+        <div class="stat-chip"><div class="k">Fare Earned</div><div class="v" id="finalScore">0</div></div>
+        <div class="stat-chip"><div class="k">Ksh Collected</div><div class="v" id="finalCoins">0</div></div>
+      </div>
+      <div class="stat-row" id="newRecordRow" style="display:none;">
+        <div class="stat-chip" style="border-color:var(--flag-green);"><div class="k">🏆 New Record</div><div class="v" id="finalBest">0</div></div>
+      </div>
+      <div class="btn-row">
+        <button class="btn" id="retryBtn">↻ PLAY AGAIN</button>
+        <button class="btn secondary" id="shopBtnEnd">🔧 GARAGE</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="controls" id="controls">
+    <button class="ctrl-btn" id="leftBtn">◀</button>
+    <button class="ctrl-btn horn" id="hornBtn">HORN</button>
+    <button class="ctrl-btn" id="rightBtn">▶</button>
+  </div>
+  <p class="footer-hint">MATATU RUSH · NAIROBI STREETS — an endless run through the city's busiest routes</p>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---------------- persistence ----------------
+  var SAVE_KEY = "matatuRushSave_v1";
+  var save = loadSave();
+
+  function defaultSave(){
+    return { bank:0, best:0, lvl:{ engine:0, suspension:0, fare:0, horn:0 } };
+  }
+  function loadSave(){
+    try{
+      var raw = localStorage.getItem(SAVE_KEY);
+      if(!raw) return defaultSave();
+      var parsed = JSON.parse(raw);
+      var d = defaultSave();
+      d.bank = parsed.bank||0; d.best = parsed.best||0;
+      d.lvl.engine = (parsed.lvl&&parsed.lvl.engine)||0;
+      d.lvl.suspension = (parsed.lvl&&parsed.lvl.suspension)||0;
+      d.lvl.fare = (parsed.lvl&&parsed.lvl.fare)||0;
+      d.lvl.horn = (parsed.lvl&&parsed.lvl.horn)||0;
+      return d;
+    }catch(e){ return defaultSave(); }
+  }
+  function persist(){
+    try{ localStorage.setItem(SAVE_KEY, JSON.stringify(save)); }catch(e){}
+  }
+
+  // ---------------- upgrade defs ----------------
+  var UPGRADES = [
+    { key:"engine", icon:"🏎️", name:"Engine Tune", desc:"Higher top speed for more fare per second.", max:5, cost:function(l){ return 40+l*35; } },
+    { key:"suspension", icon:"🛠️", name:"Reinforced Body", desc:"More health, survive extra knocks.", max:5, cost:function(l){ return 35+l*30; } },
+    { key:"fare", icon:"💺", name:"Extra Seats", desc:"Passengers pay more per pickup.", max:5, cost:function(l){ return 45+l*35; } },
+    { key:"horn", icon:"📯", name:"Sacco Horn", desc:"Unlocks/upgrades horn blast: clears your lane & grants brief invincibility.", max:3, cost:function(l){ return 60+l*50; } }
+  ];
+
+  function maxHealth(){ return 100 + save.lvl.suspension*20; }
+  function baseSpeed(){ return 2.6 + save.lvl.engine*0.28; }
+  function maxSpeed(){ return 6.2 + save.lvl.engine*0.9; }
+  function fareMult(){ return 1 + save.lvl.fare*0.35; }
+  function hornMaxCooldown(){ return save.lvl.horn>0 ? Math.max(5000, 11000 - save.lvl.horn*2500) : Infinity; }
+  function hornDuration(){ return 900 + save.lvl.horn*400; }
+
+  // ---------------- canvas / dom ----------------
+  var canvas = document.getElementById("game");
+  var ctx = canvas.getContext("2d");
+  var W = canvas.width, H = canvas.height;
+
+  var LANES = 3;
+  var ROAD_MARGIN = 46;
+  var roadW = W - ROAD_MARGIN*2;
+  var laneW = roadW / LANES;
+  function laneCenterX(lane){ return ROAD_MARGIN + laneW*lane + laneW/2; }
+
+  var startScreen = document.getElementById("startScreen");
+  var shopScreen = document.getElementById("shopScreen");
+  var gameOverScreen = document.getElementById("gameOverScreen");
+  var hud = document.getElementById("hud");
+  var toastLayer = document.getElementById("toastLayer");
+
+  document.getElementById("bestScoreDisplay").textContent = save.best;
+  document.getElementById("bankDisplayStart").textContent = save.bank;
+
+  // ---------------- shop rendering ----------------
+  function renderShop(){
+    document.getElementById("bankDisplayShop").textContent = save.bank;
+    var list = document.getElementById("shopList");
+    list.innerHTML = "";
+    UPGRADES.forEach(function(u){
+      var lvl = save.lvl[u.key];
+      var maxed = lvl >= u.max;
+      var cost = maxed ? 0 : u.cost(lvl);
+      var card = document.createElement("div");
+      card.className = "upgrade-card";
+
+      var pips = "";
+      for(var i=0;i<u.max;i++){ pips += '<div class="lvl-pip'+(i<lvl?' on':'')+'"></div>'; }
+
+      card.innerHTML =
+        '<div class="upgrade-icon">'+u.icon+'</div>'+
+        '<div class="upgrade-body">'+
+          '<div class="upgrade-name">'+u.name+(u.key==="horn"&&lvl===0?' (locked)':'')+'</div>'+
+          '<div class="upgrade-desc">'+u.desc+'</div>'+
+          '<div class="upgrade-levels">'+pips+'</div>'+
+        '</div>'+
+        '<div class="upgrade-buy">'+
+          '<div class="upgrade-cost">'+(maxed?"MAX":("Ksh "+cost))+'</div>'+
+          '<button class="btn small" data-key="'+u.key+'" '+(maxed?"disabled":"")+'>'+(maxed?"MAXED":"BUY")+'</button>'+
+        '</div>';
+      list.appendChild(card);
+    });
+    list.querySelectorAll("button[data-key]").forEach(function(btn){
+      btn.addEventListener("click", function(){
+        var key = btn.getAttribute("data-key");
+        var u = UPGRADES.filter(function(x){ return x.key===key; })[0];
+        var lvl = save.lvl[key];
+        if(lvl>=u.max) return;
+        var cost = u.cost(lvl);
+        if(save.bank < cost) return flashInsufficient(btn);
+        save.bank -= cost;
+        save.lvl[key] = lvl+1;
+        persist();
+        renderShop();
+        document.getElementById("bankDisplayStart").textContent = save.bank;
+      });
+    });
+  }
+  function flashInsufficient(btn){
+    var old = btn.textContent;
+    btn.textContent = "NEED KSH";
+    setTimeout(function(){ btn.textContent = old; }, 700);
+  }
+
+  // ---------------- screen switching ----------------
+  function showScreen(name){
+    startScreen.classList.add("hidden");
+    shopScreen.classList.add("hidden");
+    gameOverScreen.classList.add("hidden");
+    hud.classList.add("hidden");
+    if(name==="start") startScreen.classList.remove("hidden");
+    if(name==="shop"){ renderShop(); shopScreen.classList.remove("hidden"); }
+    if(name==="gameover") gameOverScreen.classList.remove("hidden");
+    if(name==="playing") hud.classList.remove("hidden");
+  }
+
+  document.getElementById("shopBtnStart").addEventListener("click", function(){ showScreen("shop"); });
+  document.getElementById("shopBtnEnd").addEventListener("click", function(){ showScreen("shop"); });
+  document.getElementById("shopBackBtn").addEventListener("click", function(){ showScreen("start"); });
+  document.getElementById("playBtn").addEventListener("click", startGame);
+  document.getElementById("retryBtn").addEventListener("click", startGame);
+
+  // ---------------- game state ----------------
+  var state = null;
+
+  function newState(){
+    return {
+      running:true,
+      lane:1,
+      x: laneCenterX(1),
+      health: maxHealth(),
+      score: 0,
+      coins: 0,
+      speed: baseSpeed(),
+      distance: 0,
+      spawnTimer: 0,
+      spawnInterval: 950,
+      obstacles: [],
+      buildings: [],
+      invuln: 0,
+      hornCooldown: 0,
+      hornActive: 0,
+      shake: 0,
+      lastTime: 0
+    };
+  }
+
+  function startGame(){
+    state = newState();
+    // seed skyline
+    for(var i=0;i<7;i++){
+      state.buildings.push({ x: (W/6)*i + rand(-10,10), h: rand(60,170), y:0, w: rand(30,50) });
+    }
+    showScreen("playing");
+    requestAnimationFrame(loop);
+  }
+
+  function rand(a,b){ return a + Math.random()*(b-a); }
+  function choice(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+
+  var TRAFFIC_COLORS = ["#c94f4f","#4f8fc9","#c9a24f","#7fbf7f","#a06fc9","#c97fae"];
+
+  function spawnObstacle(){
+    var kind;
+    var r = Math.random();
+    if(r < 0.10) kind = "police";
+    else if(r < 0.42) kind = "passenger";
+    else kind = "traffic";
+
+    // choose a lane that isn't fully blocking (leave at least one free lane at similar y-band)
+    var lane = Math.floor(Math.random()*LANES);
+    var recent = state.obstacles.filter(function(o){ return o.y < 140; });
+    var blockedLanes = {};
+    recent.forEach(function(o){ if(o.kind!=="passenger") blockedLanes[o.lane]=true; });
+    if(Object.keys(blockedLanes).length >= LANES-1 && !blockedLanes[lane]){
+      // fine, this lane is the free one
+    } else if(Object.keys(blockedLanes).length >= LANES-1){
+      var free = [0,1,2].filter(function(l){ return !blockedLanes[l]; });
+      if(free.length) lane = choice(free);
+    }
+
+    var obj = { kind:kind, lane:lane, y:-70, w:0,h:0, hit:false };
+    if(kind==="traffic"){
+      obj.w = 46; obj.h = 78; obj.color = choice(TRAFFIC_COLORS);
+    } else if(kind==="police"){
+      obj.w = 48; obj.h = 82; obj.flashT = 0;
+    } else {
+      obj.w = 30; obj.h = 40;
+    }
+    state.obstacles.push(obj);
+  }
+
+  function toast(text, color, xFrac){
+    var el = document.createElement("div");
+    el.className = "toast";
+    el.style.color = color || "#ffb703";
+    el.style.left = (xFrac!=null ? xFrac*100 : 50) + "%";
+    el.style.top = "42%";
+    el.textContent = text;
+    toastLayer.appendChild(el);
+    setTimeout(function(){ el.remove(); }, 950);
+  }
+
+  // ---------------- input ----------------
+  var keysDown = {};
+  function laneLeft(){ if(state && state.running && state.lane>0) state.lane--; }
+  function laneRight(){ if(state && state.running && state.lane<LANES-1) state.lane++; }
+  function tryHorn(){
+    if(!state || !state.running) return;
+    if(save.lvl.horn<=0) return;
+    if(state.hornCooldown>0) return;
+    state.hornActive = hornDuration();
+    state.hornCooldown = hornMaxCooldown();
+    state.obstacles.forEach(function(o){
+      if(o.kind==="traffic" || o.kind==="police"){
+        if(o.lane===state.lane && o.y>-100 && o.y< H) { o.hit=true; o.clearedByHorn=true; }
+      }
+    });
+    toast("HOOOT! 📯 cleared", "#2a9d4a");
+  }
+
+  window.addEventListener("keydown", function(e){
+    if(e.key==="ArrowLeft" || e.key==="a" || e.key==="A") laneLeft();
+    else if(e.key==="ArrowRight" || e.key==="d" || e.key==="D") laneRight();
+    else if(e.code==="Space") { e.preventDefault(); tryHorn(); }
+  });
+
+  function bindHold(el, fn){
+    var t=null;
+    el.addEventListener("pointerdown", function(e){ e.preventDefault(); fn(); });
+  }
+  bindHold(document.getElementById("leftBtn"), laneLeft);
+  bindHold(document.getElementById("rightBtn"), laneRight);
+  bindHold(document.getElementById("hornBtn"), tryHorn);
+
+  // swipe on canvas
+  var touchStartX = null;
+  canvas.addEventListener("pointerdown", function(e){ touchStartX = e.clientX; });
+  canvas.addEventListener("pointerup", function(e){
+    if(touchStartX==null) return;
+    var dx = e.clientX - touchStartX;
+    if(Math.abs(dx) > 24){ dx>0 ? laneRight() : laneLeft(); }
+    touchStartX = null;
+  });
+
+  // ---------------- update / draw ----------------
+  var LANE_TWEEN = 0.28;
+
+  function update(dt){
+    if(!state.running) return;
+
+    // difficulty ramp
+    var target = Math.min(maxSpeed(), baseSpeed() + state.distance/900);
+    state.speed += (target - state.speed) * 0.02;
+    var effSpeed = state.hornActive>0 ? state.speed*1.15 : state.speed;
+
+    state.distance += effSpeed;
+    state.score = Math.floor(state.distance/4);
+
+    if(state.invuln>0) state.invuln -= dt;
+    if(state.hornActive>0) state.hornActive -= dt;
+    if(state.hornCooldown>0) state.hornCooldown -= dt;
+    if(state.shake>0) state.shake -= dt;
+
+    // lane tween
+    var targetX = laneCenterX(state.lane);
+    state.x += (targetX - state.x) * LANE_TWEEN;
+
+    // spawn
+    state.spawnTimer += dt;
+    var interval = Math.max(430, state.spawnInterval - state.distance*0.06);
+    if(state.spawnTimer > interval){
+      state.spawnTimer = 0;
+      spawnObstacle();
+    }
+
+    // move obstacles
+    var pxPerFrame = effSpeed * (dt/16.67);
+    for(var i=state.obstacles.length-1;i>=0;i--){
+      var o = state.obstacles[i];
+      o.y += pxPerFrame * (o.kind==="passenger" ? 1 : 1) + (o.kind!=="passenger"? 0:0);
+      if(o.kind==="police") o.flashT += dt;
+
+      // collision check
+      if(!o.hit){
+        var px = state.x, py = H-118;
+        var pw = 40, ph = 66;
+        var ox = laneCenterX(o.lane), oy = o.y;
+        if(o.lane===state.lane &&
+           Math.abs(px-ox) < (pw+o.w)/2 - 8 &&
+           Math.abs(py-oy) < (ph+o.h)/2 - 6){
+          o.hit = true;
+          onCollision(o);
+        }
+      }
+      if(o.y > H+100) state.obstacles.splice(i,1);
+    }
+
+    if(state.health<=0 && state.running){
+      endGame("crash");
+    }
+  }
+
+  function onCollision(o){
+    if(o.kind==="passenger"){
+      var fare = Math.round(12*fareMult());
+      state.coins += fare;
+      state.score += 40;
+      toast("+"+fare+" Ksh 🧍", "#ffb703", 0.5);
+      return;
+    }
+    if(state.invuln>0) return;
+    if(o.kind==="traffic"){
+      state.health -= 20;
+      state.invuln = 700;
+      state.shake = 260;
+      toast("CRASH!", "#e63946", 0.5);
+    } else if(o.kind==="police"){
+      state.health -= 32;
+      state.coins = Math.max(0, state.coins-15);
+      state.invuln = 900;
+      state.shake = 380;
+      toast("BUSTED! -15 Ksh", "#e63946", 0.5);
+    }
+    updateHud();
+    if(state.health<=0){
+      endGame(o.kind==="police" ? "police" : "crash");
+    }
+  }
+
+  function updateHud(){
+    document.getElementById("hudScore").textContent = state.score;
+    document.getElementById("hudCoins").textContent = state.coins;
+    var pct = Math.max(0, state.health/maxHealth()*100);
+    document.getElementById("healthFill").style.width = pct+"%";
+    var hornBtn = document.getElementById("hornBtn");
+    if(save.lvl.horn<=0){ hornBtn.textContent="LOCKED"; hornBtn.classList.remove("cooldown"); }
+    else if(state.hornCooldown>0){ hornBtn.textContent = Math.ceil(state.hornCooldown/1000)+"s"; hornBtn.classList.add("cooldown"); }
+    else { hornBtn.textContent = "HORN"; hornBtn.classList.remove("cooldown"); }
+  }
+
+  function endGame(reason){
+    state.running = false;
+    save.coins = state.coins;
+    save.bank += state.coins;
+    var isRecord = state.score > save.best;
+    if(isRecord) save.best = state.score;
+    persist();
+
+    document.getElementById("gameOverTitle").textContent = reason==="police" ? "BUSTED!" : "CRASHED!";
+    document.getElementById("gameOverReason").textContent = reason==="police"
+      ? "The traffic police pulled your matatu over."
+      : "Your matatu took one knock too many.";
+    document.getElementById("finalScore").textContent = state.score;
+    document.getElementById("finalCoins").textContent = state.coins;
+    var recordRow = document.getElementById("newRecordRow");
+    if(isRecord){ recordRow.style.display="flex"; document.getElementById("finalBest").textContent = save.best; }
+    else recordRow.style.display="none";
+    document.getElementById("bestScoreDisplay").textContent = save.best;
+    document.getElementById("bankDisplayStart").textContent = save.bank;
+
+    setTimeout(function(){ showScreen("gameover"); }, 550);
+  }
+
+  // ---------------- drawing ----------------
+  var roadScroll = 0;
+
+  function draw(dt){
+    var shakeX = state.shake>0 ? rand(-4,4) : 0;
+    var shakeY = state.shake>0 ? rand(-3,3) : 0;
+    ctx.save();
+    ctx.translate(shakeX, shakeY);
+
+    // sky
+    var grad = ctx.createLinearGradient(0,0,0,H*0.32);
+    grad.addColorStop(0, "#7a3fa0");
+    grad.addColorStop(1, "#ff7a3c");
+    ctx.fillStyle = grad;
+    ctx.fillRect(0,0,W,H*0.32);
+
+    // skyline
+    ctx.fillStyle = "rgba(20,12,16,0.85)";
+    state.buildings.forEach(function(b){
+      ctx.fillRect(b.x, H*0.32-b.h, b.w, b.h);
+    });
+
+    // sidewalks
+    ctx.fillStyle = "#3b332c";
+    ctx.fillRect(0, H*0.32, ROAD_MARGIN, H);
+    ctx.fillRect(W-ROAD_MARGIN, H*0.32, ROAD_MARGIN, H);
+
+    // road
+    ctx.fillStyle = "#2b2b2e";
+    ctx.fillRect(ROAD_MARGIN, H*0.32, roadW, H);
+
+    // lane dashes
+    roadScroll = (roadScroll + state.speed*(dt/16.67)) % 40;
+    ctx.strokeStyle = "#ffb703";
+    ctx.lineWidth = 3;
+    for(var l=1;l<LANES;l++){
+      var lx = ROAD_MARGIN + laneW*l;
+      ctx.beginPath();
+      for(var y=H*0.32 - 40 + roadScroll; y<H; y+=40){
+        ctx.moveTo(lx, y);
+        ctx.lineTo(lx, y+22);
+      }
+      ctx.stroke();
+    }
+
+    // obstacles
+    state.obstacles.forEach(function(o){ drawObstacle(o); });
+
+    // player matatu
+    drawPlayer();
+
+    ctx.restore();
+  }
+
+  function drawObstacle(o){
+    var x = laneCenterX(o.lane), y = o.y;
+    if(o.clearedByHorn) return;
+    if(o.kind==="passenger"){
+      // person waiting: head + body, bright so it reads as collectible
+      ctx.fillStyle = "#2a9d4a";
+      ctx.beginPath(); ctx.ellipse(x, y+6, 10, 14, 0, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = "#ffdca8";
+      ctx.beginPath(); ctx.arc(x, y-10, 7, 0, Math.PI*2); ctx.fill();
+      return;
+    }
+    ctx.save();
+    ctx.translate(x,y);
+    var w=o.w, h=o.h;
+    if(o.kind==="traffic"){
+      roundRect(-w/2,-h/2,w,h,8);
+      ctx.fillStyle = o.color; ctx.fill();
+      ctx.fillStyle = "rgba(255,255,255,0.25)";
+      ctx.fillRect(-w/2+6,-h/2+8,w-12,10);
+      ctx.fillStyle="#111";
+      ctx.fillRect(-w/2+4,h/2-10,w-8,6);
+    } else if(o.kind==="police"){
+      roundRect(-w/2,-h/2,w,h,8);
+      ctx.fillStyle="#e9e9ea"; ctx.fill();
+      ctx.fillStyle="#2255aa";
+      ctx.fillRect(-w/2, -6, w, 12);
+      var on = Math.floor(o.flashT/180)%2===0;
+      ctx.fillStyle = on ? "#ff3b3b" : "#3b7bff";
+      ctx.beginPath(); ctx.arc(0,-h/2-4,5,0,Math.PI*2); ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  function roundRect(x,y,w,h,r){
+    ctx.beginPath();
+    ctx.moveTo(x+r,y);
+    ctx.arcTo(x+w,y,x+w,y+h,r);
+    ctx.arcTo(x+w,y+h,x,y+h,r);
+    ctx.arcTo(x,y+h,x,y,r);
+    ctx.arcTo(x,y,x+w,y,r);
+    ctx.closePath();
+  }
+
+  function drawPlayer(){
+    var x = state.x, y = H-118;
+    var w=42, h=70;
+    var blink = state.invuln>0 && Math.floor(state.invuln/90)%2===0;
+    if(blink) ctx.globalAlpha = 0.4;
+
+    ctx.save();
+    ctx.translate(x,y);
+
+    if(state.hornActive>0){
+      ctx.save();
+      ctx.globalAlpha = 0.35;
+      ctx.fillStyle = "#ffe36b";
+      ctx.beginPath(); ctx.ellipse(0,0,w*0.9,h*0.75,0,0,Math.PI*2); ctx.fill();
+      ctx.restore();
+    }
+
+    roundRect(-w/2,-h/2,w,h,9);
+    ctx.fillStyle = "#f4e9d8"; ctx.fill();
+
+    // graffiti stripes - matatu art motif
+    var stripeColors = ["#e63946","#ffb703","#2a9d4a"];
+    for(var i=0;i<3;i++){
+      ctx.fillStyle = stripeColors[i];
+      ctx.fillRect(-w/2, -h/2+14+i*16, w, 8);
+    }
+    // windshield
+    ctx.fillStyle = "#1b2a3a";
+    ctx.fillRect(-w/2+6, -h/2+4, w-12, 12);
+    // headlights
+    ctx.fillStyle = "#fff6c9";
+    ctx.fillRect(-w/2+3, h/2-8, 8, 6);
+    ctx.fillRect(w/2-11, h/2-8, 8, 6);
+
+    ctx.restore();
+    ctx.globalAlpha = 1;
+  }
+
+  function loop(ts){
+    if(!state) return;
+    if(!state.lastTime) state.lastTime = ts;
+    var dt = Math.min(48, ts - state.lastTime);
+    state.lastTime = ts;
+
+    if(state.running) update(dt);
+    draw(dt);
+    updateHud();
+
+    if(state.running || state.health>0){
+      if(state.running) requestAnimationFrame(loop);
+    }
+  }
+
+  // initial idle render (parked matatu on start screen)
+  (function initialRender(){
+    state = newState();
+    state.running = false;
+    draw(0);
+  })();
+
+})();
+</script>
