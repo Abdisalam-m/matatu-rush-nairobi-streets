@@ -2,9 +2,11 @@
 
 A simple 2D endless driving game concept — weave a matatu through Nairobi traffic, dodge police roadblocks, pick up passengers for fare, and spend earnings on upgrades in the Garage.
 
+**▶ Play now: https://abdisalam-m.github.io/matatu-rush-nairobi-streets/**
+
 ## Play
 
-Open `index.html` in a browser, or enable GitHub Pages on this repo (Settings -> Pages -> Deploy from branch `main` / root) to play at the generated `github.io` URL.
+Open `index.html` in a browser, or play directly at the link above (served via GitHub Pages from `main` / root).
 
 ## Features
 
